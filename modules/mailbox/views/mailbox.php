@@ -4,15 +4,19 @@
     <div class="content" style="padding-top:50px;">
 	<div class="row">
             <div class="col-md-3">
-                <div class="panel_s mbot5">
-                    <div class="">
-                        <a href="<?php echo admin_url().'mailbox/compose'; ?>" class="btn btn-info display-block">
-                            <i class="fa fa-edit"></i>
-                            <?php echo _l('mailbox_compose'); ?>
-                        </a>
-                
-                    </div>
-                </div>               
+            <div class="panel_s mbot5">
+    <div class="">
+        <a href="<?php echo admin_url().'mailbox/compose'; ?>" class="btn btn-info display-block">
+            <i class="fa fa-edit"></i>
+            <?php echo _l('mailbox_compose'); ?>
+        </a>   
+        <!-- 
+        <button type="button" class="btn btn-info display-block mtop10" onclick="check_new_emails();">
+            <i class="fa fa-refresh"></i> <?php echo _l('check_new_emails'); ?>
+        </button>
+        -->
+    </div>
+</div>              
 
                 <ul class="nav navbar-pills navbar-pills-flat nav-tabs nav-stacked customer-tabs" role="tablist">
                     <li class="<?php if ('inbox' == $group) {

@@ -57,4 +57,25 @@ $unseen_email = get_option('mailbox_only_loop_on_unseen_emails');
         <?php echo render_input('settings[mailbox_check_every]', 'leads_email_integration_check_every', $check_every, 'number', ['min'=>hooks()->apply_filters('leads_email_integration_check_every', 3), 'data-ays-ignore'=>true]); ?>
     </div>
 </div>
+<div class="row mtop15">
+    <div class="col-md-12">
+        <h4><?php echo _l('mailbox_logs'); ?></h4>
+        <div class="panel_s">
+            <div class="panel-body">
+                <div class="table-responsive">
+                    <table class="table dt-table" data-order-col="0" data-order-type="desc">
+                        <thead>
+                            <tr>
+                                <th><?php echo _l('mailbox_log_date'); ?></th>
+                                <th><?php echo _l('mailbox_log_message'); ?></th>
+                            </tr>
+                        </thead>
+                        <tbody id="mailbox-logs">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 

@@ -134,3 +134,11 @@ img.mr-2.rounded-circle {
     width: 100%;
     left:0;
 }
+.table-mailbox .bold {
+    font-weight: 600;
+    color: #000000;
+}
+
+.table-mailbox .bold td {
+    font-size: 14px;
+}

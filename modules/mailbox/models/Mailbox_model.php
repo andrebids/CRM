@@ -334,6 +334,12 @@ class Mailbox_model extends App_Model
         return true;
     }
 
+    public function get_mailbox_logs() {
+        $this->db->where('description LIKE', '%Mailbox Debug%');
+        $this->db->order_by('date', 'DESC');
+        $this->db->limit(50);
+        return $this->db->get(db_prefix().'activitylog')->result_array();
+    }
 	public function conversationTicket_inbox($data, $mailsubject) {
 		$selected_customers = $this->input->post('select_customer');
 		$email_message = $data['email_message'];

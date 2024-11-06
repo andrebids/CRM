@@ -119,168 +119,136 @@ function scan_email_server()
     $imap_server  = get_option('mailbox_imap_server');
     $encryption   = get_option('mailbox_encryption');
     $folder_scan  = get_option('mailbox_folder_scan');
+    
+    error_log('Mailbox Debug - Configurações:');
+    error_log('Mailbox Debug - Enabled: ' . $enabled);
+    error_log('Mailbox Debug - Server: ' . $imap_server);
+    error_log('Mailbox Debug - Encryption: ' . $encryption);
+    error_log('Mailbox Debug - Folder: ' . $folder_scan);
+
     $check_every  = '1';
     $unseen_email = get_option('mailbox_only_loop_on_unseen_emails');
+
+    error_log('Mailbox Debug - Iniciando verificação de emails');
+    error_log('Mailbox Debug - Servidor: ' . $imap_server);
+    error_log('Mailbox Debug - Encriptação: ' . $encryption);
+
     if (1 == $enabled && strlen($imap_server) > 0) {
         $CI = &get_instance();
         $CI->db->select()
             ->from(db_prefix().'staff')
             ->where(db_prefix().'staff.mail_password !=', '');
         $staffs = $CI->db->get()->result_array();
+
         require_once APPPATH.'third_party/php-imap/Imap.php';
         include_once APPPATH.'third_party/simple_html_dom.php';
+
         foreach ($staffs as $staff) {
             $last_run    = $staff['last_email_check'];
             $staff_email = $staff['email'];
             $staff_id    = $staff['staffid'];
             $email_pass  = $staff['mail_password'];
+
             if (empty($last_run) || (time() > $last_run + ($check_every * 60))) {
-                require_once APPPATH.'third_party/php-imap/Imap.php';
                 $CI->db->where('staffid', $staff_id);
                 $CI->db->update(db_prefix().'staff', [
                     'last_email_check' => time(),
                 ]);
-                // open connection
-                $imap = new Imap($imap_server, $staff_email, $email_pass, $encryption);
-                if (false === $imap->isConnected()) {
-                    log_activity('Failed to connect to IMAP from email: '.$staff_email, null);
-                    continue;
-                }
-                if ('' == $folder_scan) {
-                    $folder_scan = 'Inbox';
-                }
-                $imap->selectFolder($folder_scan);
-                if (1 == $unseen_email) {
-                    $emails = $imap->getUnreadMessages();
-                } else {
-                    $emails = $imap->getMessages();
-                }
 
-                foreach ($emails as $email) {
-                    $plainTextBody = $imap->getPlainTextBody($email['uid']);
-                    $plainTextBody = trim($plainTextBody);
-                    if (!empty($plainTextBody)) {
-                        $email['body'] = $plainTextBody;
-                    }
-                    /*if(strpos($email['body'],'sFmB2605')){
+                try {
+                    error_log('Mailbox Debug - Tentando conectar com: ' . $staff_email);
+                    
+                    $imap = new Imap($imap_server, $staff_email, $email_pass, $encryption);
+                    
+                    if (false === $imap->isConnected()) {
+                        error_log('Mailbox Debug - Falha na conexão para: ' . $staff_email);
+                        error_log('Mailbox Debug - Erro detalhado: ' . $imap->getError());
                         continue;
-                    }*/
-                    $email['body']       = handle_google_drive_links_in_text($email['body']);
-                    $email['body']       = prepare_imap_email_body_html($email['body']);
-                    $data['attachments'] = [];
-                    $data                = [];
-                    $data['attachments'] = [];
-                    if (isset($email['attachments'])) {
-                        foreach ($email['attachments'] as $key => $at) {
-                            $_at_name = $email['attachments'][$key]['name'];
-                            // Rename the name to filename the model expects filename not name
-                            unset($email['attachments'][$key]['name']);
-                            $email['attachments'][$key]['filename'] = $_at_name;
-                            $_attachment                            = $imap->getAttachment($email['uid'], $key);
-                            $email['attachments'][$key]['data']     = $_attachment['content'];
-                        }
-                        // Add the attchments to data
-                        $data['attachments'] = $email['attachments'];
+                    }
+
+                    error_log('Mailbox Debug - Conexão bem sucedida para: ' . $staff_email);
+
+                    if ('' == $folder_scan) {
+                        $folder_scan = 'Inbox';
+                    }
+
+                    $imap->selectFolder($folder_scan);
+                    error_log('Mailbox Debug - Pasta selecionada: ' . $folder_scan);
+
+                    if (1 == $unseen_email) {
+                        $emails = $imap->getUnreadMessages();
                     } else {
-                        // No attachments
+                        $emails = $imap->getMessages();
+                    }
+
+                    error_log('Mailbox Debug - Emails encontrados: ' . count($emails));
+
+                    foreach ($emails as $email) {
+                        $plainTextBody = $imap->getPlainTextBody($email['uid']);
+                        $plainTextBody = trim($plainTextBody);
+                        
+                        if (!empty($plainTextBody)) {
+                            $email['body'] = $plainTextBody;
+                        }
+
+                        $email['body'] = handle_google_drive_links_in_text($email['body']);
+                        $email['body'] = prepare_imap_email_body_html($email['body']);
+                        
+                        $data = [];
                         $data['attachments'] = [];
-                    }
 
-                    // Check for To
-                    $data['to'] = [];
-                    if (isset($email['to'])) {
-                        foreach ($email['to'] as $to) {
-                            $data['to'][] = trim(preg_replace('/(.*)<(.*)>/', '\\2', $to));
+                        if (isset($email['attachments'])) {
+                            foreach ($email['attachments'] as $key => $at) {
+                                $_at_name = $email['attachments'][$key]['name'];
+                                unset($email['attachments'][$key]['name']);
+                                $email['attachments'][$key]['filename'] = $_at_name;
+                                $_attachment = $imap->getAttachment($email['uid'], $key);
+                                $email['attachments'][$key]['data'] = $_attachment['content'];
+                            }
+                            $data['attachments'] = $email['attachments'];
+                        }
+
+                        $data['to'] = [];
+                        if (isset($email['to'])) {
+                            foreach ($email['to'] as $to) {
+                                $data['to'][] = trim(preg_replace('/(.*)<(.*)>/', '\\2', $to));
+                            }
+                        }
+
+                        $data['cc'] = [];
+                        if (isset($email['cc'])) {
+                            foreach ($email['cc'] as $cc) {
+                                $data['cc'][] = trim(preg_replace('/(.*)<(.*)>/', '\\2', $cc));
+                            }
+                        }
+
+                        if ('true' == hooks()->apply_filters('imap_fetch_from_email_by_reply_to_header', 'true')) {
+                            $replyTo = $imap->getReplyToAddresses($email['uid']);
+                            if ($replyTo) {
+                                $email['from'] = $replyTo[0];
+                            }
+                        }
+
+                        $data['subject'] = $email['subject'];
+                        $data['body']    = $email['body'];
+                        $data['date']    = $email['date'];
+                        $data['from']    = $email['from'];
+                        
+                        error_log('Mailbox Debug - Processando email: ' . $data['subject']);
+                        
+                        $inbox_id = save_email($data, $staff_id);
+
+                        if ($inbox_id) {
+                            $imap->setUnseenMessage($email['uid']);
+                            error_log('Mailbox Debug - Email salvo com sucesso - ID: ' . $inbox_id);
                         }
                     }
-
-                    // Check for CC
-                    $data['cc'] = [];
-                    if (isset($email['cc'])) {
-                        foreach ($email['cc'] as $cc) {
-                            $data['cc'][] = trim(preg_replace('/(.*)<(.*)>/', '\\2', $cc));
-                        }
-                    }
-
-                    if ('true' == hooks()->apply_filters('imap_fetch_from_email_by_reply_to_header', 'true')) {
-                        $replyTo = $imap->getReplyToAddresses($email['uid']);
-
-                        if (1 === count($replyTo)) {
-                            $email['from'] = $replyTo[0];
-                        }
-                    }
-					$from_email = preg_replace('/(.*)<(.*)>/', '\\2', $email['from']);
-					
-					$decodedfrom = $from_email;
-					
-					$data['fromname'] = preg_replace('/(.*)<(.*)>/', '\\1', $email['from']);
-					$data['fromname'] = trim(str_replace('"', '', $data['fromname']));
-
-					// Decode sender's name if it's encoded with Base64
-					if (preg_match('/\=\?UTF\-8\?B\?(.*?)\?=/i', $data['fromname'], $matches)) {
-						$data['fromname'] = base64_decode($matches[1]);
-					}
-
-					$inbox = [];
-					$inbox['from_email'] = $decodedfrom;
-					$from_staff_id = get_staff_id_by_email(trim($decodedfrom));
-					if ($from_staff_id) {
-						$inbox['from_staff_id'] = $from_staff_id;
-					}
-					$inbox['to'] = implode(',', $data['to']);
-					$inbox['cc'] = implode(',', $data['cc']);
-					$inbox['sender_name'] = $data['fromname'];
-					$inbox['subject'] = $email['subject'];
-					$inbox['body'] = $email['body'];
-					$inbox['to_staff_id'] = $staff_id;
-					$inbox['date_received'] = date('Y-m-d H:i:s');
-					$inbox['folder'] = 'inbox';
-
-
-                    $CI->db->insert(db_prefix().'mail_inbox', $inbox);
-                    $inbox_id = $CI->db->insert_id();
-                    $path     = MAILBOX_MODULE_UPLOAD_FOLDER.'/inbox/'.$inbox_id.'/';
-                    foreach ($data['attachments'] as $attachment) {
-                        $filename      = $attachment['filename'];
-                        $filenameparts = explode('.', $filename);
-                        $extension     = end($filenameparts);
-                        $extension     = strtolower($extension);
-                        $filename      = implode('', array_slice($filenameparts, 0, 0 - 1));
-                        $filename      = trim(preg_replace('/[^a-zA-Z0-9-_ ]/', '', $filename));
-                        if (!$filename) {
-                            $filename = 'attachment';
-                        }
-                        if (!file_exists($path)) {
-                            mkdir($path, 0755);
-                            $fp = fopen($path.'index.html', 'w');
-                            fclose($fp);
-                        }
-                        $filename = unique_filename($path, $filename.'.'.$extension);
-                        $fp       = fopen($path.$filename, 'w');
-                        fwrite($fp, $attachment['data']);
-                        fclose($fp);
-                        $matt               = [];
-                        $matt['mail_id']    = $inbox_id;
-                        $matt['type']       = 'inbox';
-                        $matt['file_name']  = $filename;
-                        $matt['file_type']  = get_mime_by_extension($filename);
-                        $CI->db->insert(db_prefix().'mail_attachment', $matt);
-                    }
-                    if (count($data['attachments']) > 0) {
-                        $CI->db->where('id', $inbox_id);
-                        $CI->db->update(db_prefix().'mail_inbox', [
-                            'has_attachment' => 1,
-                        ]);
-                    }
-
-                    if ($inbox_id) {
-                        $imap->setUnseenMessage($email['uid']);
-                    }
+                } catch (Exception $e) {
+                    error_log('Mailbox Debug - Erro: ' . $e->getMessage() . ' - Email: ' . $staff_email);
                 }
             }
         }
     }
-
     return false;
 }
 
@@ -375,4 +343,38 @@ function mailbox_after_lead_tabs_content($data){
     $CI = &get_instance();
     echo $CI->load->view('mailbox/conversation', $data, true);
     }
+}
+
+function save_email($data, $staff_id) {
+    $CI = &get_instance();
+    
+    // Extrair email do campo from
+    $from_email = trim(preg_replace('/(.*)<(.*)>/', '\\2', $data['from']));
+    if (empty($from_email)) {
+        $from_email = $data['from']; // Caso não tenha o formato com <>
+    }
+    
+    $insert_data = [
+        'from_staff_id' => 0,
+        'to_staff_id' => $staff_id,
+        'to' => is_array($data['to']) ? implode(',', $data['to']) : $data['to'],
+        'cc' => is_array($data['cc']) ? implode(',', $data['cc']) : $data['cc'],
+        'subject' => $data['subject'],
+        'body' => $data['body'],
+        'date_received' => date('Y-m-d H:i:s', strtotime($data['date'])),
+        'from_email' => $from_email,
+        'read' => 0,
+        'folder' => 'inbox',
+        'has_attachment' => !empty($data['attachments']) ? 1 : 0
+    ];
+    
+    $CI->db->insert(db_prefix().'mail_inbox', $insert_data);
+    $insert_id = $CI->db->insert_id();
+    
+    if ($insert_id) {
+        log_activity('Novo email recebido de: ' . $from_email);
+        return $insert_id;
+    }
+    
+    return false;
 }

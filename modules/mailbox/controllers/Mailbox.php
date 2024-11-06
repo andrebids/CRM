@@ -77,6 +77,17 @@ class Mailbox extends AdminController
      *
      * @return
      */
+
+
+     public function get_logs() {
+        if (!is_admin()) {
+            ajax_access_denied();
+        }
+        
+        $this->load->model('mailbox_model');
+        $logs = $this->mailbox_model->get_mailbox_logs();
+        echo json_encode($logs);
+    }
     public function table($group = 'inbox')
     {
         if ($this->input->is_ajax_request()) {
@@ -304,4 +315,23 @@ public function conversationTicket_inbox(){
 }
 	
 
+public function check_emails_manually() {
+    if (!is_admin()) {
+        ajax_access_denied();
+    }
+    
+    error_log('Mailbox Debug - Iniciando verificação manual');
+    
+    scan_email_server();
+    
+    $response = [
+        'success' => true,
+        'message' => _l('emails_checked_successfully')
+    ];
+    
+    error_log('Mailbox Debug - Verificação manual concluída');
+    
+    echo json_encode($response);
+    die();
+} // Esta chave estava faltando
 }

@@ -97,6 +97,32 @@ if (!$CI->db->field_exists('inbox_id', 'mail_conversation')) {
     $CI->db->query('ALTER TABLE `'.db_prefix().'mail_conversation` ADD COLUMN `inbox_id` int(255) DEFAULT NULL');
 }
 
+if (!$CI->db->table_exists(db_prefix().'activitylog')) {
+    $CI->db->query('CREATE TABLE `'.db_prefix().'activitylog` (
+        `id` int(11) NOT NULL AUTO_INCREMENT,
+        `description` mediumtext NOT NULL,
+        `date` datetime NOT NULL,
+        `staffid` int(11) DEFAULT NULL,
+        PRIMARY KEY (`id`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8;');
+}
+
+if (!$CI->db->table_exists(db_prefix().'mail_inbox')) {
+    $CI->db->query('CREATE TABLE `'.db_prefix().'mail_inbox` (
+        `id` int(11) NOT NULL AUTO_INCREMENT,
+        `staff_id` int(11) NOT NULL,
+        `from` varchar(255) NOT NULL,
+        `to` text DEFAULT NULL,
+        `cc` text DEFAULT NULL,
+        `subject` varchar(255) DEFAULT NULL,
+        `body` text DEFAULT NULL,
+        `date` datetime DEFAULT NULL,
+        `created_at` datetime DEFAULT NULL,
+        `attachments` text DEFAULT NULL,
+        PRIMARY KEY (`id`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8;');
+}
+
 // Moving necessary dependencies to the correct place for clean installs of v2.7.0+
 $checkfolder = FCPATH . 'application/third_party/php-imap';
 $srcloc = APP_MODULES_PATH . 'mailbox/third_party/php-imap'; 
