@@ -6,6 +6,7 @@
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="user-scalable=no, width=device-width, initial-scale=1, maximum-scale=1">
+    <link href="<?php echo base_url('assets/css/custom-login.css'); ?>" rel="stylesheet">
     <title>
         <?php echo e(get_option('companyname')); ?> - <?php echo _l('admin_auth_login_heading'); ?>
     </title>
